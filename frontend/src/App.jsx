@@ -44,11 +44,29 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 출판하기 버튼 클릭 시 동작 (다음 단계에서 스위트북 API 연동 예정)
-  const handlePublish = () => {
-    alert(
-      "이곳에 스위트북 Books API & Orders API를 호출하는 로직이 들어갈 예정입니다! 📖",
-    );
+  // 출판하기 버튼 클릭 시 동작
+  const handlePublish = async () => {
+    try {
+      alert(
+        "출판을 위해 스위트북 API에 요청을 보냅니다... 잠시만 기다려주세요! 🪄",
+      );
+
+      const response = await fetch("http://localhost:3000/api/publish", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message); // 성공 메시지 출력
+        setIsFinished(true);
+      } else {
+        alert("출판 실패: " + data.message);
+      }
+    } catch (error) {
+      console.error("출판 API 호출 에러:", error);
+      alert("서버와 통신하는 데 문제가 발생했습니다.");
+    }
   };
 
   return (
