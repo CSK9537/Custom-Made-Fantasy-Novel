@@ -1,10 +1,10 @@
-// backend/index.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-// 방금 만든 서비스 모듈을 불러옵니다.
-const { publishAlchemistNovel } = require("./sweetbook");
+// 분리해둔 두 개의 서비스를 불러옵니다.
+const { createAlchemistBook } = require("./bookService");
+const { orderAlchemistBook } = require("./orderService");
 
 const app = express();
 const port = 3000;
@@ -12,7 +12,9 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
-// 1. 대화 API (기존 코드 그대로 유지)
+// ==========================================
+// 1. 대화 API (강철의 연금술사 스토리 로직 복구!)
+// ==========================================
 app.post("/api/chat", (req, res) => {
   const { message, turn } = req.body;
 
@@ -46,22 +48,32 @@ app.post("/api/chat", (req, res) => {
 });
 
 // ==========================================
-// 2. 출판 API (극도로 깔끔해진 라우터)
+// 2. 출판 API (모듈화된 로직 조립)
 // ==========================================
 app.post("/api/publish", async (req, res) => {
   try {
-    // 분리해둔 비즈니스 로직(sweetbook.js)을 호출하기만 하면 끝!
-    const result = await publishAlchemistNovel();
+    // 1단계: 책 연성 (bookService)
+    const completedBookUid = await createAlchemistBook();
 
+    // 2단계: 군부 주문 (orderService)
+    const orderUid = await orderAlchemistBook(completedBookUid);
+
+    // 최종 프론트엔드 응답
     res.json({
       success: true,
-      message: `📚 성공적으로 '연금술 연구 일지' 연성 및 군부 제출이 완료되었습니다! (주문번호: ${result.orderUid})`,
+      message: `📚 성공적으로 '연금술 연구 일지' 연성 및 군부 제출이 완료되었습니다! (주문번호: ${orderUid})`,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "출판 실패: 등가교환의 법칙에 어긋났습니다.",
-    });
+    console.error("❌ 출판 과정 중 오류 발생:", error.message);
+    if (error.details)
+      console.log("🔍 에러 상세:", JSON.stringify(error.details, null, 2));
+
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "출판 실패: 등가교환의 법칙에 어긋났습니다.",
+      });
   }
 });
 
