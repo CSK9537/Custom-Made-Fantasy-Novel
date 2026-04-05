@@ -1,71 +1,111 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [turn, setTurn] = useState(0);
   const [choices, setChoices] = useState([]);
   const [isFinished, setIsFinished] = useState(false);
+  const [isGeneratingText, setIsGeneratingText] = useState(false);
 
-  // 게임 마스터(백엔드)와 통신하는 함수
+  const initialized = useRef(false);
+
   const fetchGMResponse = async (userMessage = "") => {
     try {
-      // 사용자가 선택지를 눌렀다면 화면에 먼저 표시
       if (userMessage) {
         setMessages((prev) => [...prev, { sender: "user", text: userMessage }]);
       }
 
-      // 백엔드 API 호출
+      // 1. 대사 연성 시작
+      setIsGeneratingText(true);
+      setChoices([]);
+
+      // 텍스트 API 먼저 호출
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage, turn }),
       });
-
       const data = await response.json();
 
-      // 게임 마스터의 응답을 화면에 표시
-      setMessages((prev) => [...prev, { sender: "gm", text: data.text }]);
+      setIsGeneratingText(false);
+
+      // 2. 대사를 받자마자 화면에 즉시 출력!
+      const msgId = Date.now();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: msgId,
+          sender: "gm",
+          text: data.text,
+          imageUrl: null,
+          isLoadingImage: true, // 이미지는 아직 로딩 중이라고 표시
+        },
+      ]);
       setChoices(data.choices || []);
 
-      // 챕터가 끝났다면 상태 업데이트
       if (data.isEndOfChapter) {
         setIsFinished(true);
       }
-
       setTurn((prev) => prev + 1);
+
+      // 3. 백그라운드에서 조용히 이미지 API 호출!
+      if (data.imagePrompt) {
+        fetch("http://localhost:3000/api/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imagePrompt: data.imagePrompt }),
+        })
+          .then((res) => res.json())
+          .then((imgData) => {
+            // 이미지가 도착하면 해당 메시지에 끼워넣기
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === msgId
+                  ? {
+                      ...msg,
+                      imageUrl: imgData.imageUrl,
+                      isLoadingImage: false,
+                    }
+                  : msg,
+              ),
+            );
+          });
+      }
     } catch (error) {
       console.error("API 통신 에러:", error);
+      setIsGeneratingText(false);
     }
   };
 
-  // 앱이 처음 켜질 때 게임 마스터의 첫 인사말 불러오기
   useEffect(() => {
-    fetchGMResponse();
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchGMResponse();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 출판하기 버튼 클릭 시 동작
   const handlePublish = async () => {
     try {
       alert(
-        "출판을 위해 스위트북 API에 요청을 보냅니다... 잠시만 기다려주세요! 🪄",
+        "스토리와 연성된 이미지를 스위트북으로 보냅니다... 잠시만 기다려주세요! 🪄",
       );
-
       const response = await fetch("http://localhost:3000/api/publish", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
       });
 
       const data = await response.json();
-
       if (data.success) {
-        alert(data.message); // 성공 메시지 출력
+        alert(data.message);
         setIsFinished(true);
       } else {
         alert("출판 실패: " + data.message);
       }
     } catch (error) {
-      console.error("출판 API 호출 에러:", error);
-      alert("서버와 통신하는 데 문제가 발생했습니다.");
+      console.error("출판 에러:", error);
+      alert("서버 통신 오류가 발생했습니다.");
     }
   };
 
@@ -86,7 +126,7 @@ function App() {
           paddingBottom: "10px",
         }}
       >
-        🗡️ Custom-Made Fantasy Novel
+        🗡️ 연금술사 비주얼 노벨
       </h1>
 
       <div
@@ -101,7 +141,6 @@ function App() {
           flexDirection: "column",
         }}
       >
-        {/* 대화 내역 출력 영역 */}
         <div
           style={{
             flex: 1,
@@ -126,26 +165,72 @@ function App() {
                     msg.sender === "user" ? "#4a5568" : "#2d3748",
                   border: msg.sender === "gm" ? "1px solid #4a5568" : "none",
                   lineHeight: "1.6",
-                  maxWidth: "80%",
+                  maxWidth: "90%",
                   wordBreak: "keep-all",
+                  textAlign: "left",
                 }}
               >
                 <strong
                   style={{
                     display: "block",
-                    marginBottom: "5px",
+                    marginBottom: "8px",
                     color: msg.sender === "gm" ? "#f6ad55" : "#63b3ed",
                   }}
                 >
-                  {msg.sender === "gm" ? "🧙‍♂️ 게임 마스터" : "⚔️ 용사 (당신)"}
+                  {msg.sender === "gm" ? "🧙‍♂️ 게임 마스터" : "⚔️ 당신"}
                 </strong>
-                {msg.text}
+
+                <div style={{ marginBottom: "10px" }}>{msg.text}</div>
+
+                {msg.isLoadingImage && (
+                  <div
+                    style={{
+                      fontStyle: "italic",
+                      color: "#a0aec0",
+                      padding: "10px",
+                      border: "1px dashed #4a5568",
+                      borderRadius: "5px",
+                      fontSize: "14px",
+                    }}
+                  >
+                    🎨 진리의 문에서 장면을 연성하는 중...
+                  </div>
+                )}
+
+                {msg.imageUrl && (
+                  <img
+                    src={msg.imageUrl}
+                    alt="Scene 연성 이미지"
+                    style={{
+                      width: "100%",
+                      borderRadius: "6px",
+                      border: "1px solid #4a5568",
+                      marginTop: "10px",
+                    }}
+                  />
+                )}
               </span>
             </div>
           ))}
+
+          {isGeneratingText && (
+            <div style={{ textAlign: "left" }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "12px 18px",
+                  borderRadius: "8px",
+                  backgroundColor: "#2d3748",
+                  color: "#a0aec0",
+                  fontStyle: "italic",
+                }}
+              >
+                ✍️ 마스터가 스토리를 연성 중...
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* 선택지 또는 출판 버튼 영역 */}
         <div style={{ borderTop: "1px solid #444", paddingTop: "15px" }}>
           {!isFinished ? (
             <div
@@ -154,23 +239,17 @@ function App() {
               {choices.map((choice, idx) => (
                 <button
                   key={idx}
+                  disabled={isGeneratingText}
                   onClick={() => fetchGMResponse(choice)}
                   style={{
                     padding: "12px",
-                    backgroundColor: "#2b6cb0",
+                    backgroundColor: isGeneratingText ? "#4a5568" : "#2b6cb0",
                     color: "white",
                     border: "none",
                     borderRadius: "5px",
-                    cursor: "pointer",
+                    cursor: isGeneratingText ? "not-allowed" : "pointer",
                     fontSize: "15px",
-                    transition: "background-color 0.2s",
                   }}
-                  onMouseOver={(e) =>
-                    (e.target.style.backgroundColor = "#2c5282")
-                  }
-                  onMouseOut={(e) =>
-                    (e.target.style.backgroundColor = "#2b6cb0")
-                  }
                 >
                   {choice}
                 </button>
@@ -190,10 +269,8 @@ function App() {
                 fontWeight: "bold",
                 cursor: "pointer",
               }}
-              onMouseOver={(e) => (e.target.style.backgroundColor = "#9b2c2c")}
-              onMouseOut={(e) => (e.target.style.backgroundColor = "#c53030")}
             >
-              📖 이 모험의 기록을 양장본으로 출판하기
+              📖 출판하기
             </button>
           )}
         </div>

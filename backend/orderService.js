@@ -8,7 +8,7 @@ const client = new SweetbookClient({
 });
 
 async function orderAlchemistBook(bookUid) {
-  console.log("[1/2] 군부 연구 지원금(Sandbox 잔액) 확인 중...");
+  console.log("[1/3] 군부 연구 지원금(Sandbox 잔액) 확인 중...");
   const balance = await client.credits.getBalance();
 
   if (balance.balance < 50000) {
@@ -18,9 +18,25 @@ async function orderAlchemistBook(bookUid) {
     console.log(`✅ 잔액 충분 (${balance.balance}원)`);
   }
 
-  console.log("[2/2] 센트럴 사령부에 출판(주문) 접수 중...");
+  // ==========================================
+  // 🚨 [추가된 부분] 공식 워크플로우 Step 8: 견적 조회 (Estimate)
+  // ==========================================
+  console.log("[2/3] 출판 견적 조회 중...");
+  const orderItems = [{ bookUid: bookUid, quantity: 1 }];
+
+  const estimate = await client.orders.estimate({
+    items: orderItems,
+  });
+  console.log(
+    `✅ 견적 확인 완료: 총 ${estimate.totalAmount}원 차감 예정 (배송비: ${estimate.shippingFee}원)`,
+  );
+
+  // ==========================================
+  // 공식 워크플로우 Step 9: 주문 생성
+  // ==========================================
+  console.log("[3/3] 센트럴 사령부에 출판(주문) 접수 중...");
   const order = await client.orders.create({
-    items: [{ bookUid: bookUid, quantity: 1 }],
+    items: orderItems,
     shipping: {
       recipientName: "에드워드 엘릭",
       recipientPhone: "010-1234-5678",
