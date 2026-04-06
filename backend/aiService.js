@@ -2,19 +2,22 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
-// Gemini API 초기화
+const isTestMode = process.env.USE_TEST_MODE === "true";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// 🚨 1. 모델 이름을 변수로 빼서 위아래 모두 동일하게 적용 (에러 방지)
 const MODEL_NAME = "gemini-2.5-flash";
 
-// 게임 마스터의 뇌(모델) 세팅
 const model = genAI.getGenerativeModel({
   model: MODEL_NAME,
   systemInstruction: `
     당신은 '강철의 연금술사(Fullmetal Alchemist)' TRPG의 게임 마스터입니다.
     유저의 선택에 따라 어둡고 긴장감 넘치는 스토리를 진행하세요.
     매 턴마다 대사와 선택지, 그리고 DALL-E 3용 영어 이미지 프롬프트를 JSON으로 반환해야 합니다.
+
+    [📖 서사 페이스 조절 규칙 - 매우 중요!]
+    - 이 게임은 최소 24페이지 분량의 포토북으로 출판되어야 합니다.
+    - 턴(Turn) 정보를 바탕으로 기승전결을 조절하세요. (초반: 탐험/미스터리, 중반: 전투/갈등, 후반: 클라이맥스/진리)
+    - 특별한 치명적 선택(배드엔딩/사망)이 발생하지 않는 한, **24턴이 되기 전까지는 절대 게임을 끝내지 말고 "isEndOfChapter": false 를 유지**하세요.
+    - 24턴 이상이 되면 스토리를 자연스럽게 에필로그로 이끌고 "isEndOfChapter": true 를 반환하여 출판을 유도하세요.
 
     [🎨 이미지 프롬프트 작성 핵심 규칙]
     1. 저작권 필터를 피하기 위해 캐릭터 이름(Edward 등) 대신 외형을 묘사하세요. (예: a young boy with blond hair, red cloak, and a mechanical automail right arm)
@@ -31,6 +34,37 @@ const model = genAI.getGenerativeModel({
 let chatSession;
 
 async function playWithGM(userMessage, turn) {
+  if (isTestMode) {
+    console.log(
+      `🧪 [테스트 모드 가동] Gemini API 호출을 생략하고 더미 텍스트를 반환합니다. (Turn: ${turn})`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // 테스트 모드는 예외 상황(빠른 종료)을 테스트하기 위해 3턴(turn 2)에 강제 종료시킵니다.
+    if (turn === 0) {
+      return {
+        text: "[테스트 모드] 심사관이 차가운 눈빛으로 당신의 이름을 묻습니다.",
+        choices: ["이름을 댄다.", "연금술을 보여준다."],
+        imagePrompt: "A young boy with blond hair...",
+        isEndOfChapter: false,
+      };
+    } else if (turn === 1) {
+      return {
+        text: `[테스트 모드] 호문쿨루스가 난입합니다! 어떻게 하시겠습니까?`,
+        choices: ["공격한다.", "지원 요청한다."],
+        imagePrompt: "A terrifying humanoid creature...",
+        isEndOfChapter: false,
+      };
+    } else {
+      return {
+        text: "[테스트 모드] 위기를 모면했습니다. 첫 기록을 출판하시겠습니까?",
+        choices: ["출판하기", "돌아가기"],
+        imagePrompt: "A young alchemist...",
+        isEndOfChapter: true,
+      };
+    }
+  }
+
   try {
     if (turn === 0 || !chatSession) {
       chatSession = model.startChat({ history: [] });
@@ -39,13 +73,16 @@ async function playWithGM(userMessage, turn) {
       userMessage = `유저의 선택: "${userMessage}". 이어서 진행하세요.`;
     }
 
+    // 🚨 [핵심 변경] AI에게 현재 턴 수와 목표를 명시적으로 주입합니다.
     const finalUserMessage = `
+      [시스템 정보: 현재 ${turn + 1}턴 진행 중 (목표: 24턴 이상)]
       ${userMessage}
+      
       반드시 아래 JSON 형식으로만 응답하세요:
       {
         "text": "GM의 대사...",
         "choices": ["선택지1", "선택지2"],
-        "imagePrompt": "Arakawa Hiromu anime style, detail visual description of the scene...", 
+        "imagePrompt": "Arakawa Hiromu anime style...", 
         "isEndOfChapter": false
       }
     `;
@@ -101,6 +138,10 @@ async function playWithGM(userMessage, turn) {
 
 // 대화 내용을 바탕으로 멋진 표지 프롬프트를 생성하는 함수
 async function generateCoverPromptByStory(messages) {
+  // 🚨 [추가] 표지 생성 시에도 테스트 모드면 구글 API를 부르지 않음!
+  if (isTestMode) {
+    return "Test mode dummy cover prompt";
+  }
   try {
     const userStory = messages
       .filter((msg) => msg.sender === "user")

@@ -37,27 +37,29 @@ async function createAlchemistBook(coverImageUrl, imageUrls) {
     `✅ 생성된 이미지(${imageUrls.length}개)를 포토북에 연성합니다...`,
   );
 
+  // 사진 내지 삽입
   for (let i = 0; i < imageUrls.length; i++) {
     const imgUrl = imageUrls[i];
-
-    // 사진 내지 삽입 (변수명 'photo'는 템플릿에 맞게 변경!)
     await client.contents.insert(
       bookUid,
       IMAGE_TEMPLATE_UID,
       {
         dayLabel: "아메스트리스력 1914년",
-        photo: imgUrl, // 🚨 생성된 이미지 URL을 꽂음!
+        photo: imgUrl,
         hasDayLabel: true,
       },
       { breakBefore: "page" },
     );
   }
 
-  // 빈내지 삽입 (파라미터 없음)
-  const remainingPages = 24 - messages.length;
+  // ==========================================
+  // 🚨 [수정됨] messages.length 가 아니라 imageUrls.length 로 계산해야 합니다!
+  // ==========================================
+  const remainingPages = 24 - imageUrls.length;
+
   if (remainingPages > 0) {
     console.log(
-      `✅ 최소 두께를 맞추기 위해 빈 내지 ${remainingPages}장을 추가합니다...`,
+      `✅ [예외 상황 감지] 최소 두께(24p)를 맞추기 위해 빈 내지 ${remainingPages}장을 추가합니다...`,
     );
     for (let i = 0; i < remainingPages; i++) {
       await client.contents.insert(
@@ -67,6 +69,8 @@ async function createAlchemistBook(coverImageUrl, imageUrls) {
         { breakBefore: "page" },
       );
     }
+  } else {
+    console.log(`✅ 24페이지 이상 꽉 찬 서사가 완성되었습니다! (빈 내지 없음)`);
   }
 
   console.log("[3/3] 책 상태 최종화(Finalize) 중...");

@@ -1,13 +1,21 @@
 import { useState, useEffect, useRef } from "react";
+import "./App.css"; // 🚨 CSS 파일을 외부에서 불러옵니다!
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [turn, setTurn] = useState(0);
   const [choices, setChoices] = useState([]);
+
   const [isFinished, setIsFinished] = useState(false);
   const [isGeneratingText, setIsGeneratingText] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isOrdering, setIsOrdering] = useState(false);
+
+  const [bookUid, setBookUid] = useState(null);
+  const [orderUid, setOrderUid] = useState(null);
 
   const initialized = useRef(false);
+  const scrollRef = useRef(null);
 
   const fetchGMResponse = async (userMessage = "") => {
     try {
@@ -15,11 +23,9 @@ function App() {
         setMessages((prev) => [...prev, { sender: "user", text: userMessage }]);
       }
 
-      // 1. 대사 연성 시작
       setIsGeneratingText(true);
       setChoices([]);
 
-      // 텍스트 API 먼저 호출
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -29,7 +35,6 @@ function App() {
 
       setIsGeneratingText(false);
 
-      // 2. 대사를 받자마자 화면에 즉시 출력!
       const msgId = Date.now();
       setMessages((prev) => [
         ...prev,
@@ -38,7 +43,7 @@ function App() {
           sender: "gm",
           text: data.text,
           imageUrl: null,
-          isLoadingImage: true, // 이미지는 아직 로딩 중이라고 표시
+          isLoadingImage: true,
         },
       ]);
       setChoices(data.choices || []);
@@ -48,7 +53,6 @@ function App() {
       }
       setTurn((prev) => prev + 1);
 
-      // 3. 백그라운드에서 조용히 이미지 API 호출!
       if (data.imagePrompt) {
         fetch("http://localhost:3000/api/image", {
           method: "POST",
@@ -57,7 +61,6 @@ function App() {
         })
           .then((res) => res.json())
           .then((imgData) => {
-            // 이미지가 도착하면 해당 메시지에 끼워넣기
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === msgId
@@ -85,11 +88,19 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isGeneratingText]);
+
   const handlePublish = async () => {
     try {
+      setIsPublishing(true);
       alert(
-        "스토리와 연성된 이미지를 스위트북으로 보냅니다... 잠시만 기다려주세요! 🪄",
+        "스토리와 연성된 이미지를 책으로 묶습니다... 잠시만 기다려주세요! 🪄",
       );
+
       const response = await fetch("http://localhost:3000/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,181 +108,260 @@ function App() {
       });
 
       const data = await response.json();
+      setIsPublishing(false);
+
       if (data.success) {
+        setBookUid(data.bookUid);
         alert(data.message);
-        setIsFinished(true);
       } else {
         alert("출판 실패: " + data.message);
       }
     } catch (error) {
       console.error("출판 에러:", error);
+      setIsPublishing(false);
+      alert("서버 통신 오류가 발생했습니다.");
+    }
+  };
+
+  const handleOrder = async () => {
+    try {
+      setIsOrdering(true);
+      alert("센트럴 사령부에 인쇄를 요청합니다... 🛒");
+
+      const response = await fetch("http://localhost:3000/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookUid }),
+      });
+
+      const data = await response.json();
+      setIsOrdering(false);
+
+      if (data.success) {
+        setOrderUid(data.orderUid);
+        alert(data.message);
+      } else {
+        alert("주문 실패: " + data.message);
+      }
+    } catch (error) {
+      console.error("주문 에러:", error);
+      setIsOrdering(false);
       alert("서버 통신 오류가 발생했습니다.");
     }
   };
 
   return (
-    <div
-      style={{
-        backgroundColor: "#1a1a1a",
-        color: "#eaeaea",
-        minHeight: "100vh",
-        padding: "20px",
-        fontFamily: "serif",
-      }}
-    >
-      <h1
-        style={{
-          textAlign: "center",
-          borderBottom: "1px solid #333",
-          paddingBottom: "10px",
-        }}
+    <div style={{ color: "#d1c7b7", minHeight: "100vh", padding: "20px" }}>
+      {/* 헤더 부분 */}
+      <div
+        style={{ textAlign: "center", marginBottom: "20px", marginTop: "10px" }}
       >
-        🗡️ 연금술사 비주얼 노벨
-      </h1>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "28px",
+            color: "#f3e5d8",
+            textShadow: "0 2px 10px rgba(0,0,0,0.8)",
+          }}
+        >
+          국가 연금술사 연구 일지
+        </h1>
+        <p style={{ margin: "5px 0 0 0", fontSize: "14px", color: "#8c7355" }}>
+          The Fullmetal Alchemist Visual Novel
+        </p>
+        <div
+          style={{
+            width: "60px",
+            height: "2px",
+            background: "#5c4b37",
+            margin: "15px auto",
+          }}
+        />
+      </div>
 
+      {/* 메인 노벨 컨테이너 */}
       <div
         style={{
-          maxWidth: "600px",
+          maxWidth: "700px",
           margin: "0 auto",
-          padding: "20px",
-          backgroundColor: "#2a2a2a",
-          borderRadius: "8px",
-          minHeight: "500px",
+          backgroundColor: "#121214",
+          border: "1px solid #2a2218",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
+          borderRadius: "6px",
           display: "flex",
           flexDirection: "column",
+          height: "75vh",
         }}
       >
+        {/* 스토리 스크롤 영역 */}
         <div
+          className="novel-scroll"
+          ref={scrollRef}
           style={{
             flex: 1,
             overflowY: "auto",
-            marginBottom: "20px",
+            padding: "30px",
             display: "flex",
             flexDirection: "column",
-            gap: "15px",
+            gap: "35px",
           }}
         >
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              style={{ textAlign: msg.sender === "user" ? "right" : "left" }}
+              className="fade-in"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: msg.sender === "user" ? "flex-end" : "flex-start",
+              }}
             >
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "12px 18px",
-                  borderRadius: "8px",
-                  backgroundColor:
-                    msg.sender === "user" ? "#4a5568" : "#2d3748",
-                  border: msg.sender === "gm" ? "1px solid #4a5568" : "none",
-                  lineHeight: "1.6",
-                  maxWidth: "90%",
-                  wordBreak: "keep-all",
-                  textAlign: "left",
-                }}
-              >
-                <strong
+              {/* 유저의 선택 텍스트 */}
+              {msg.sender === "user" && (
+                <div
                   style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    color: msg.sender === "gm" ? "#f6ad55" : "#63b3ed",
+                    color: "#8c7355",
+                    fontStyle: "italic",
+                    fontSize: "15px",
+                    borderBottom: "1px solid #2a2218",
+                    paddingBottom: "5px",
                   }}
                 >
-                  {msg.sender === "gm" ? "🧙‍♂️ 게임 마스터" : "⚔️ 당신"}
-                </strong>
+                  " {msg.text} "
+                </div>
+              )}
 
-                <div style={{ marginBottom: "10px" }}>{msg.text}</div>
+              {/* 게임 마스터(나레이션) 및 이미지 영역 */}
+              {msg.sender === "gm" && (
+                <div style={{ width: "100%" }}>
+                  {msg.isLoadingImage && (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        padding: "40px",
+                        border: "1px solid #2a2218",
+                        backgroundColor: "#0b0b0c",
+                        marginBottom: "20px",
+                        color: "#5c4b37",
+                        fontStyle: "italic",
+                        fontSize: "14px",
+                      }}
+                    >
+                      ✧ 진리의 문에서 장면을 연성하는 중... ✧
+                    </div>
+                  )}
+                  {msg.imageUrl && (
+                    <div
+                      className="fade-in"
+                      style={{ marginBottom: "25px", textAlign: "center" }}
+                    >
+                      <img
+                        src={msg.imageUrl}
+                        alt="Scene"
+                        style={{
+                          width: "100%",
+                          border: "2px solid #3a2f24",
+                          boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
+                          borderRadius: "2px",
+                        }}
+                      />
+                    </div>
+                  )}
 
-                {msg.isLoadingImage && (
+                  {/* 나레이션 텍스트 */}
                   <div
                     style={{
-                      fontStyle: "italic",
-                      color: "#a0aec0",
-                      padding: "10px",
-                      border: "1px dashed #4a5568",
-                      borderRadius: "5px",
-                      fontSize: "14px",
+                      fontSize: "16px",
+                      lineHeight: "1.8",
+                      color: "#d1c7b7",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+                      wordBreak: "keep-all",
                     }}
                   >
-                    🎨 진리의 문에서 장면을 연성하는 중...
+                    {msg.text.split("\n").map((line, i) => (
+                      <p key={i} style={{ margin: "0 0 10px 0" }}>
+                        {line}
+                      </p>
+                    ))}
                   </div>
-                )}
-
-                {msg.imageUrl && (
-                  <img
-                    src={msg.imageUrl}
-                    alt="Scene 연성 이미지"
-                    style={{
-                      width: "100%",
-                      borderRadius: "6px",
-                      border: "1px solid #4a5568",
-                      marginTop: "10px",
-                    }}
-                  />
-                )}
-              </span>
+                </div>
+              )}
             </div>
           ))}
 
           {isGeneratingText && (
-            <div style={{ textAlign: "left" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "12px 18px",
-                  borderRadius: "8px",
-                  backgroundColor: "#2d3748",
-                  color: "#a0aec0",
-                  fontStyle: "italic",
-                }}
-              >
-                ✍️ 마스터가 스토리를 연성 중...
-              </span>
+            <div
+              className="fade-in"
+              style={{
+                textAlign: "center",
+                color: "#5c4b37",
+                fontStyle: "italic",
+                padding: "20px 0",
+              }}
+            >
+              기록을 이어나가는 중...
             </div>
           )}
         </div>
 
-        <div style={{ borderTop: "1px solid #444", paddingTop: "15px" }}>
+        {/* 하단 컨트롤 영역 */}
+        <div
+          style={{
+            padding: "20px 30px",
+            borderTop: "1px solid #2a2218",
+            backgroundColor: "#0e0e10",
+          }}
+        >
           {!isFinished ? (
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
             >
               {choices.map((choice, idx) => (
                 <button
                   key={idx}
+                  className="choice-btn"
                   disabled={isGeneratingText}
                   onClick={() => fetchGMResponse(choice)}
-                  style={{
-                    padding: "12px",
-                    backgroundColor: isGeneratingText ? "#4a5568" : "#2b6cb0",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "5px",
-                    cursor: isGeneratingText ? "not-allowed" : "pointer",
-                    fontSize: "15px",
-                  }}
                 >
                   {choice}
                 </button>
               ))}
             </div>
-          ) : (
+          ) : !bookUid ? (
             <button
+              className="action-btn publish-btn"
               onClick={handlePublish}
+              disabled={isPublishing}
+            >
+              {isPublishing
+                ? "📖 진리의 문에서 책을 엮는 중..."
+                : "📖 연구 일지 엮어내기 (출판)"}
+            </button>
+          ) : !orderUid ? (
+            <button
+              className="action-btn order-btn"
+              onClick={handleOrder}
+              disabled={isOrdering}
+            >
+              {isOrdering
+                ? "🛒 사령부에 주문 접수 중..."
+                : "🛒 센트럴 사령부에 인쇄 요청하기 (주문)"}
+            </button>
+          ) : (
+            <div
+              className="fade-in"
               style={{
-                width: "100%",
-                padding: "15px",
-                backgroundColor: "#c53030",
-                color: "white",
-                border: "none",
-                borderRadius: "5px",
-                fontSize: "18px",
-                fontWeight: "bold",
-                cursor: "pointer",
+                textAlign: "center",
+                padding: "16px",
+                backgroundColor: "rgba(27,67,50,0.4)",
+                border: "1px solid #2f855a",
+                color: "#9ae6b4",
+                borderRadius: "4px",
+                fontSize: "16px",
               }}
             >
-              📖 출판하기
-            </button>
+              ✅ 국가 연금술사 사령부로 주문이 완료되었습니다.
+            </div>
           )}
         </div>
       </div>
