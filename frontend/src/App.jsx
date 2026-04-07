@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 
-// ✍️ 1. 글자를 한 땀 한 땀 연성하는 타이핑 컴포넌트
+// ✍️ 글자를 한 땀 한 땀 연성하는 타이핑 컴포넌트
 const Typewriter = ({ text, speed = 40, onTyping }) => {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -14,10 +14,7 @@ const Typewriter = ({ text, speed = 40, onTyping }) => {
     const timer = setInterval(() => {
       setDisplayedText(text.slice(0, i + 1));
       i++;
-
-      // 글자가 찍힐 때마다 스크롤을 맨 아래로 내리도록 부모에게 알림
       if (onTyping) onTyping();
-
       if (i >= text.length) {
         clearInterval(timer);
         setIsTyping(false);
@@ -26,7 +23,7 @@ const Typewriter = ({ text, speed = 40, onTyping }) => {
 
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, speed]); // onTyping은 렌더링 무한루프 방지를 위해 의존성 배열에서 제외
+  }, [text, speed]);
 
   return (
     <div
@@ -41,7 +38,6 @@ const Typewriter = ({ text, speed = 40, onTyping }) => {
       {displayedText.split("\n").map((line, idx, arr) => (
         <p key={idx} style={{ margin: "0 0 10px 0" }}>
           {line}
-          {/* 타자가 쳐지는 동안 맨 마지막 줄 끝에 깜빡이는 커서(|) 표시 */}
           {isTyping && idx === arr.length - 1 && (
             <span className="blinking-cursor">|</span>
           )}
@@ -60,6 +56,10 @@ function App() {
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
+  const [isCanceling, setIsCanceling] = useState(false); // 취소 로딩 상태
+
+  // 🔍 갤러리 모달 창 열림/닫힘 상태 추가
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [bookUid, setBookUid] = useState(null);
   const [orderUid, setOrderUid] = useState(null);
@@ -67,7 +67,6 @@ function App() {
   const initialized = useRef(false);
   const scrollRef = useRef(null);
 
-  // ✍️ 2. 스크롤을 강제로 맨 아래로 내리는 함수 (타이핑 중에도 호출됨)
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -78,7 +77,7 @@ function App() {
     try {
       if (userMessage) {
         setMessages((prev) => [...prev, { sender: "user", text: userMessage }]);
-        setTimeout(scrollToBottom, 100); // 유저 대사 입력 후 스크롤 내리기
+        setTimeout(scrollToBottom, 100);
       }
 
       setIsGeneratingText(true);
@@ -130,7 +129,7 @@ function App() {
                   : msg,
               ),
             );
-            setTimeout(scrollToBottom, 200); // 이미지 로드 완료 후 스크롤 갱신
+            setTimeout(scrollToBottom, 200);
           });
       }
     } catch (error) {
@@ -151,10 +150,11 @@ function App() {
     scrollToBottom();
   }, [messages, isGeneratingText, scrollToBottom]);
 
+  // 📖 출판 API 호출 함수 (이제 모달 안에서 불립니다)
   const handlePublish = async () => {
-    /* 기존 코드 동일 */
     try {
       setIsPublishing(true);
+      setShowPreviewModal(false); // 출판 시작 시 모달 닫기
       alert(
         "스토리와 연성된 이미지를 책으로 묶습니다... 잠시만 기다려주세요! 🪄",
       );
@@ -179,7 +179,6 @@ function App() {
   };
 
   const handleOrder = async () => {
-    /* 기존 코드 동일 */
     try {
       setIsOrdering(true);
       alert("센트럴 사령부에 인쇄를 요청합니다... 🛒");
@@ -203,8 +202,51 @@ function App() {
     }
   };
 
+  // 🚨 취소 버튼 핸들러 추가
+  const handleCancelOrder = async () => {
+    if (
+      !window.confirm(
+        "정말 인쇄 요청을 취소하시겠습니까?\n(충전금은 즉시 환불됩니다)",
+      )
+    )
+      return;
+
+    try {
+      setIsCanceling(true);
+      const response = await fetch("http://localhost:3000/api/order/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderUid }), // 취소할 주문 번호를 서버로 전송
+      });
+
+      const data = await response.json();
+      setIsCanceling(false);
+
+      if (data.success) {
+        alert(data.message);
+        setOrderUid(null); // 주문 번호를 날려버려서 다시 "주문하기" 버튼이 뜨게 만듦!
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error("주문 취소 에러:", error);
+      setIsCanceling(false);
+      alert("서버 통신 오류가 발생했습니다.");
+    }
+  };
+
+  // 모달 렌더링에 사용할 이미지가 있는 메시지만 필터링
+  const galleryImages = messages.filter((msg) => msg.imageUrl);
+
   return (
-    <div style={{ color: "#d1c7b7", minHeight: "100vh", padding: "20px" }}>
+    <div
+      style={{
+        color: "#d1c7b7",
+        minHeight: "100vh",
+        padding: "20px",
+        position: "relative",
+      }}
+    >
       <div
         style={{ textAlign: "center", marginBottom: "20px", marginTop: "10px" }}
       >
@@ -316,7 +358,6 @@ function App() {
                     </div>
                   )}
 
-                  {/* ✍️ 3. 단순 텍스트 렌더링 대신 Typewriter 컴포넌트 적용! */}
                   <Typewriter
                     text={msg.text}
                     speed={30}
@@ -365,14 +406,15 @@ function App() {
               ))}
             </div>
           ) : !bookUid ? (
+            // 🚨 출판 버튼을 누르면 바로 출판하는게 아니라 모달을 먼저 띄웁니다!
             <button
               className="action-btn publish-btn"
-              onClick={handlePublish}
+              onClick={() => setShowPreviewModal(true)}
               disabled={isPublishing}
             >
               {isPublishing
                 ? "📖 진리의 문에서 책을 엮는 중..."
-                : "📖 연구 일지 엮어내기 (출판)"}
+                : "🔍 출판 전 연성진 검토 (미리보기)"}
             </button>
           ) : !orderUid ? (
             <button
@@ -385,23 +427,112 @@ function App() {
                 : "🛒 센트럴 사령부에 인쇄 요청하기 (주문)"}
             </button>
           ) : (
+            // 🚨 주문 완료 후 나타나는 화면 수정
             <div
               className="fade-in"
-              style={{
-                textAlign: "center",
-                padding: "16px",
-                backgroundColor: "rgba(27,67,50,0.4)",
-                border: "1px solid #2f855a",
-                color: "#9ae6b4",
-                borderRadius: "4px",
-                fontSize: "16px",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
             >
-              ✅ 국가 연금술사 사령부로 주문이 완료되었습니다.
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "16px",
+                  backgroundColor: "rgba(27,67,50,0.4)",
+                  border: "1px solid #2f855a",
+                  color: "#9ae6b4",
+                  borderRadius: "4px",
+                  fontSize: "16px",
+                }}
+              >
+                ✅ 국가 연금술사 사령부로 주문이 완료되었습니다. <br />
+                <span style={{ fontSize: "13px", color: "#68d391" }}>
+                  (주문번호: {orderUid})
+                </span>
+              </div>
+
+              {/* 🚨 비상탈출(취소) 버튼 추가 */}
+              <button
+                onClick={handleCancelOrder}
+                disabled={isCanceling}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  backgroundColor: "transparent",
+                  color: "#fc8181",
+                  border: "1px solid #fc8181",
+                  borderRadius: "4px",
+                  fontSize: "15px",
+                  cursor: isCanceling ? "not-allowed" : "pointer",
+                  transition: "all 0.3s ease",
+                  opacity: isCanceling ? 0.5 : 1,
+                }}
+              >
+                {isCanceling
+                  ? "⏳ 취소 요청 중..."
+                  : "🚨 비상탈출 (인쇄 주문 취소하기)"}
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* 🔍 출판 전 갤러리 모달창 */}
+      {showPreviewModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowPreviewModal(false)}
+        >
+          {/* 안쪽 클릭 시 닫히지 않도록 e.stopPropagation() 처리 */}
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ margin: 0, fontSize: "20px", color: "#f3e5d8" }}>
+                📖 출판 전 수집된 일지 (총 {galleryImages.length}장)
+              </h2>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#8c7355",
+                  fontSize: "28px",
+                  cursor: "pointer",
+                  lineHeight: "1",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="modal-body novel-scroll">
+              <div className="gallery-grid">
+                {galleryImages.map((msg, idx) => (
+                  <div key={idx} className="gallery-item">
+                    <img src={msg.imageUrl} alt={`Scene ${idx + 1}`} />
+                    <p>제 {idx + 1} 장</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              {/* 🚨 '더 수정하기'를 직관적인 '닫기'로 변경! */}
+              <button
+                className="choice-btn"
+                style={{ width: "auto", padding: "10px 20px", margin: 0 }}
+                onClick={() => setShowPreviewModal(false)}
+              >
+                닫기
+              </button>
+              <button
+                className="action-btn publish-btn"
+                style={{ width: "auto", padding: "10px 30px", margin: 0 }}
+                onClick={handlePublish}
+              >
+                최종 출판하기 🪄
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

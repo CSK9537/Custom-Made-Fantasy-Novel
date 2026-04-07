@@ -108,3 +108,99 @@ body {
     opacity: 0;
   }
 }
+
+/* App.css 맨 아래에 추가 */
+
+/* --- 🔍 갤러리 미리보기 모달 --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+  background: #121214;
+  border: 2px solid #5c4b37;
+  border-radius: 6px;
+  width: 90%;
+  max-width: 800px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 0 40px rgba(0, 0, 0, 0.8),
+    inset 0 0 20px rgba(92, 75, 55, 0.1);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #2a2218;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0b0b0c;
+}
+
+.modal-body {
+  padding: 25px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 20px;
+  border-top: 1px solid #2a2218;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  background: #0b0b0c;
+}
+
+/* 갤러리 그리드 레이아웃 */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.gallery-item {
+  border: 1px solid #3a2f24;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #0b0b0c;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.gallery-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.8);
+  border-color: #8c7355;
+  z-index: 2;
+}
+
+.gallery-item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-item p {
+  padding: 10px;
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: #a0aec0;
+  border-top: 1px solid #2a2218;
+}
