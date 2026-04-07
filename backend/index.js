@@ -78,7 +78,7 @@ app.post("/api/publish", async (req, res) => {
     res.json({
       success: true,
       bookUid: completedBookUid,
-      message: `📚 완벽한 연구 일지가 연성되었습니다! (Book UID: ${completedBookUid})`,
+      message: `완벽한 연구 일지가 연성되었습니다! (Book UID: ${completedBookUid})`,
     });
   } catch (error) {
     console.error("[Server] ❌ Error: 출판 API 처리 중 오류 발생 -", error);
@@ -108,7 +108,7 @@ app.post("/api/order", async (req, res) => {
     res.json({
       success: true,
       orderUid: orderUid,
-      message: `📦 인쇄 및 배송 주문 접수 완료! (주문번호: ${orderUid})`,
+      message: `인쇄 및 배송 주문 접수 완료! (주문번호: ${orderUid})`,
     });
   } catch (error) {
     console.error("[Server] ❌ Error: 주문 API 처리 중 오류 발생 -", error);
@@ -139,7 +139,7 @@ app.post("/api/order/cancel", async (req, res) => {
 
     res.json({
       success: true,
-      message: "🗑️ 성공적으로 주문이 취소되고 지원금이 환불되었습니다.",
+      message: "성공적으로 주문이 취소되고 지원금이 환불되었습니다.",
     });
   } catch (error) {
     console.error(
