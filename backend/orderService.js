@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const client = new SweetbookClient({
   apiKey: process.env.SWEETBOOK_API_KEY,
-  environment: "sandbox",
+  environment: process.env.SWEETBOOK_ENV,
 });
 
 async function orderAlchemistBook(bookUid) {
@@ -27,6 +27,15 @@ async function orderAlchemistBook(bookUid) {
   });
   console.log(`✅ 견적 확인 완료: 총 ${estimate.totalAmount}원 차감 예정`);
 
+  // ==========================================
+  // 🚨 [지뢰 제거] 충전금 충분 여부 사전 검증
+  // ==========================================
+  if (!estimate.creditSufficient) {
+    console.log("❌ [결제 실패] 사령부 지원금(충전금)이 부족합니다.");
+    // 에러를 던져서 프론트엔드로 전달할 수 있게 합니다.
+    throw new Error("INSUFFICIENT_CREDITS");
+  }
+
   console.log("[3/3] 센트럴 사령부에 출판(주문) 접수 중...");
   const order = await client.orders.create(
     {
@@ -42,8 +51,8 @@ async function orderAlchemistBook(bookUid) {
       externalRef: `ALCHEMIST-${bookUid}`,
     },
     {
-      // 🚨 [핵심] 이중 결제 방지용 멱등성 키! (책 ID를 키로 사용하여 중복 주문 원천 차단)
-      idempotencyKey: `order-${bookUid}`,
+      // ✅ [수정 후] 책 ID에 현재 시간(밀리초)을 붙여, 취소 후 재주문 시에도 충돌하지 않게 함!
+      idempotencyKey: `order-${bookUid}-${Date.now()}`,
     },
   );
 
@@ -57,11 +66,29 @@ async function orderAlchemistBook(bookUid) {
   return order.orderUid;
 }
 
-// 🚨 [추가] 주문 취소(비상탈출) 함수
+// 🚨 [추가/수정] 주문 취소(비상탈출) 함수 + 상태 검증 로직
 async function cancelAlchemistOrder(orderUid) {
-  console.log(`[주문 취소] 주문번호 ${orderUid} 취소 요청 중...`);
+  console.log(`[주문 취소] 주문번호 ${orderUid} 취소 가능 여부 확인 중...`);
 
-  // SDK의 취소 메서드 호출
+  // 1. 주문 상세 정보 사전 조회
+  const orderInfo = await client.orders.get(orderUid);
+  // API 응답 구조에 따라 status 또는 orderStatus에 담겨옵니다.
+  const currentStatus = orderInfo.orderStatus || orderInfo.status;
+
+  console.log(`  🔍 현재 주문 상태: ${currentStatus}`);
+
+  // 2. 취소 가능 상태 필터링 (PAID: 결제완료, PDF_READY: 인쇄준비완료)
+  const cancellableStatuses = ["PAID", "PDF_READY", 20, 25];
+
+  if (!cancellableStatuses.includes(currentStatus)) {
+    console.log(
+      `❌ [취소 불가] 이미 제작이 시작된 상태(${currentStatus})입니다.`,
+    );
+    throw new Error("NON_CANCELLABLE_STATUS");
+  }
+
+  // 3. 검증 통과 시에만 취소 API 호출
+  console.log(`✅ 취소 가능 상태 확인 완료. 안전하게 비상탈출을 진행합니다...`);
   const result = await client.orders.cancel(orderUid, {
     cancelReason: "연금술사의 변심 (비상탈출)",
   });

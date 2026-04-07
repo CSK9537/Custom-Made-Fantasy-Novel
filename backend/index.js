@@ -22,10 +22,15 @@ app.use((req, res, next) => {
   }
 });
 
+// ==========================================
 // 1. 대화 전용 API
+// ==========================================
 app.post("/api/chat", async (req, res) => {
-  const { message, turn } = req.body;
-  const gmResponse = await playWithGM(message, turn);
+  // 🚨 프론트엔드에서 고유 sessionId를 넘겨준다고 가정 (없으면 기본값 할당)
+  const { sessionId = "guest-session", message, turn } = req.body;
+
+  // playWithGM 함수에 sessionId를 첫 번째 인자로 꽂아줍니다.
+  const gmResponse = await playWithGM(sessionId, message, turn);
   res.json(gmResponse);
 });
 
@@ -103,6 +108,15 @@ app.post("/api/order", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ 주문 오류:", error);
+
+    // 🚨 잔액 부족 에러를 잡아서 402 상태 코드로 응답
+    if (error.message === "INSUFFICIENT_CREDITS") {
+      return res.status(402).json({
+        success: false,
+        message: "사령부 지원금(충전금)이 부족하여 인쇄를 진행할 수 없습니다.",
+      });
+    }
+
     res
       .status(500)
       .json({ success: false, message: "주문 실패: 사령부 통신 장애." });
@@ -129,11 +143,19 @@ app.post("/api/order/cancel", async (req, res) => {
       message: "🗑️ 성공적으로 주문이 취소되고 지원금이 환불되었습니다.",
     });
   } catch (error) {
-    console.error("❌ 주문 취소 오류:", error);
-    // 이미 제작(CONFIRMED)에 들어갔거나 잘못된 주문일 경우 에러 발생
+    console.error("❌ 주문 취소 오류:", error.message);
+
+    // 🚨 제작 시작으로 인한 취소 불가 에러 처리
+    if (error.message === "NON_CANCELLABLE_STATUS") {
+      return res.status(400).json({
+        success: false,
+        message: "취소 불가: 이미 연성(제작)이 시작되어 돌이킬 수 없습니다.",
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: "취소 실패: 이미 제작이 시작되었거나 오류가 발생했습니다.",
+      message: "취소 실패: 알 수 없는 오류가 발생했습니다.",
     });
   }
 });

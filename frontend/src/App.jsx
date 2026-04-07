@@ -66,6 +66,9 @@ function App() {
 
   const initialized = useRef(false);
   const scrollRef = useRef(null);
+  const sessionId = useRef(
+    `alchemist-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+  );
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -86,11 +89,16 @@ function App() {
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage, turn }),
+        // 🚨 [1순위 수정] 백엔드로 내 고유 방 번호를 보냅니다!
+        body: JSON.stringify({
+          sessionId: sessionId.current,
+          message: userMessage,
+          turn,
+        }),
       });
       const data = await response.json();
 
-      setIsGeneratingText(false);
+      // ❌ 원래 여기에 있던 setIsGeneratingText(false); 를 지웠습니다!
 
       const msgId = Date.now();
       setMessages((prev) => [
@@ -130,7 +138,18 @@ function App() {
               ),
             );
             setTimeout(scrollToBottom, 200);
+
+            // 🚨 [2순위 수정] 이미지가 완전히 화면에 표시될 준비가 된 '지금' 잠금을 풉니다!
+            setIsGeneratingText(false);
+          })
+          .catch((err) => {
+            console.error("이미지 통신 에러:", err);
+            // 에러가 나서 이미지를 못 받아와도 게임은 진행되도록 잠금을 풀어줍니다.
+            setIsGeneratingText(false);
           });
+      } else {
+        // 이미지 프롬프트가 없는 턴이라면 바로 잠금을 풉니다.
+        setIsGeneratingText(false);
       }
     } catch (error) {
       console.error("API 통신 에러:", error);

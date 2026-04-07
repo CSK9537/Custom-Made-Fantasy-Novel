@@ -30,10 +30,10 @@ const model = genAI.getGenerativeModel({
   },
 });
 
-// 대화 내역을 기억할 세션 변수 (로컬 테스트용)
-let chatSession;
+// ✅ [수정 후] 유저별 대화방을 따로 관리하는 Map 구조 도입
+const chatSessions = new Map();
 
-async function playWithGM(userMessage, turn) {
+async function playWithGM(sessionId, userMessage, turn) {
   if (isTestMode) {
     console.log(
       `🧪 [테스트 모드 가동] Gemini API 호출을 생략하고 더미 텍스트를 반환합니다. (Turn: ${turn})`,
@@ -66,14 +66,19 @@ async function playWithGM(userMessage, turn) {
   }
 
   try {
-    if (turn === 0 || !chatSession) {
-      chatSession = model.startChat({ history: [] });
+    // 🚨 유저의 고유 ID(방 번호)로 기존 대화 기록을 찾습니다.
+    let session = chatSessions.get(sessionId);
+
+    if (turn === 0 || !session) {
+      // 새로운 방 만들기
+      session = model.startChat({ history: [] });
+      chatSessions.set(sessionId, session); // 맵에 저장!
+
       userMessage = `게임을 시작합니다. 첫 상황 묘사와 이미지 프롬프트를 주세요.`;
     } else {
       userMessage = `유저의 선택: "${userMessage}". 이어서 진행하세요.`;
     }
 
-    // 🚨 [핵심 변경] AI에게 현재 턴 수와 목표를 명시적으로 주입합니다.
     const finalUserMessage = `
       [시스템 정보: 현재 ${turn + 1}턴 진행 중 (목표: 24턴 이상)]
       ${userMessage}
@@ -87,7 +92,8 @@ async function playWithGM(userMessage, turn) {
       }
     `;
 
-    const result = await chatSession.sendMessage(finalUserMessage);
+    // 🚨 전역 변수가 아닌 '해당 유저의 session'에 메시지를 보냅니다.
+    const result = await session.sendMessage(finalUserMessage);
     return JSON.parse(result.response.text());
   } catch (error) {
     console.error(

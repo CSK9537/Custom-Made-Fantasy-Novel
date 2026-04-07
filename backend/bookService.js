@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const client = new SweetbookClient({
   apiKey: process.env.SWEETBOOK_API_KEY,
-  environment: "sandbox",
+  environment: process.env.SWEETBOOK_ENV,
 });
 
 async function createAlchemistBook(coverImageUrl, imageUrls) {
@@ -31,15 +31,25 @@ async function createAlchemistBook(coverImageUrl, imageUrls) {
   console.log("✅ 표지 연성 완료");
 
   // ==========================================
-  // 🚨 대화 중 생성된 이미지들을 진짜 포토북 내지에 찍어내기
+  // 🚨 1. 최대 페이지(130장) 제한 적용 (초과 시 잘라내기)
   // ==========================================
+  if (imageUrls.length > 130) {
+    console.log(
+      `⚠️ [경고] 최대 규격(130장)을 초과하여, 앞의 130장까지만 연성합니다.`,
+    );
+  }
+
+  // 130장까지만 안전하게 잘라냅니다. (130장 이하면 원본 그대로 유지됨)
+  const safeImageUrls = imageUrls.slice(0, 130);
+
   console.log(
-    `✅ 생성된 이미지(${imageUrls.length}개)를 포토북에 연성합니다...`,
+    `✅ 확정된 이미지(${safeImageUrls.length}개)를 포토북 내지로 삽입합니다...`,
   );
 
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   // 사진 내지 삽입
-  for (let i = 0; i < imageUrls.length; i++) {
-    const imgUrl = imageUrls[i];
+  for (let i = 0; i < safeImageUrls.length; i++) {
+    const imgUrl = safeImageUrls[i];
     await client.contents.insert(
       bookUid,
       IMAGE_TEMPLATE_UID,
@@ -50,27 +60,29 @@ async function createAlchemistBook(coverImageUrl, imageUrls) {
       },
       { breakBefore: "page" },
     );
+    await sleep(100);
   }
 
   // ==========================================
-  // 🚨 [수정됨] messages.length 가 아니라 imageUrls.length 로 계산해야 합니다!
+  // 🚨 2. 최소 페이지(24장) 미달 방지 (음수 방지)
   // ==========================================
-  const remainingPages = 24 - imageUrls.length;
+  const minimumPagesNeeded = Math.max(0, 24 - safeImageUrls.length);
 
-  if (remainingPages > 0) {
+  if (minimumPagesNeeded > 0) {
     console.log(
-      `✅ [예외 상황 감지] 최소 두께(24p)를 맞추기 위해 빈 내지 ${remainingPages}장을 추가합니다...`,
+      `✅ 최소 두께(24p)를 맞추기 위해 빈 내지 ${minimumPagesNeeded}장을 추가합니다...`,
     );
-    for (let i = 0; i < remainingPages; i++) {
+    for (let i = 0; i < minimumPagesNeeded; i++) {
       await client.contents.insert(
         bookUid,
         BLANK_TEMPLATE_UID,
         {},
         { breakBefore: "page" },
       );
+      await sleep(100);
     }
   } else {
-    console.log(`✅ 24페이지 이상 꽉 찬 서사가 완성되었습니다! (빈 내지 없음)`);
+    console.log(`✅ ${safeImageUrls.length}페이지의 서사가 완성되었습니다!`);
   }
 
   console.log("[3/3] 책 상태 최종화(Finalize) 중...");
