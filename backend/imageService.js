@@ -4,7 +4,6 @@ require("dotenv").config();
 
 // 🚨 스위치 상태 읽어오기
 const isTestMode = process.env.USE_TEST_MODE === "true";
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });

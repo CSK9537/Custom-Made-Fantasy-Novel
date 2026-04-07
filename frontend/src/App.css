@@ -90,3 +90,21 @@ body {
   filter: grayscale(80%);
   cursor: not-allowed;
 }
+
+/* 타이핑 커서 애니메이션 */
+.blinking-cursor {
+  font-weight: bold;
+  color: #8c7355;
+  animation: blink 0.8s step-end infinite;
+  margin-left: 3px;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const client = new SweetbookClient({
   apiKey: process.env.SWEETBOOK_API_KEY,
-  environment: "sandbox",
+  environment: process.env.SWEETBOOK_ENV,
 });
 
 async function orderAlchemistBook(bookUid) {
