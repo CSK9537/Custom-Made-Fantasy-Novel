@@ -7,7 +7,187 @@ body {
   font-family: "Noto Serif KR", serif;
 }
 
-/* 커스텀 스크롤바 */
+/* --- 공통 구조 --- */
+.app-container {
+  color: #d1c7b7;
+  min-height: 100vh;
+  padding: 20px;
+  position: relative;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 20px;
+  margin-top: 10px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 28px;
+  color: #f3e5d8;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.app-subtitle {
+  margin: 5px 0 0 0;
+  font-size: 14px;
+  color: #8c7355;
+}
+
+.app-divider {
+  width: 60px;
+  height: 2px;
+  background: #5c4b37;
+  margin: 15px auto;
+}
+
+.main-box {
+  max-width: 700px;
+  margin: 0 auto;
+  background-color: #121214;
+  border: 1px solid #2a2218;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  height: 75vh;
+}
+
+/* --- 채팅 (대화) 영역 --- */
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 35px;
+}
+
+.message-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-row {
+  align-items: flex-end;
+}
+
+.gm-row {
+  align-items: flex-start;
+}
+
+.user-text {
+  color: #8c7355;
+  font-style: italic;
+  font-size: 15px;
+  border-bottom: 1px solid #2a2218;
+  padding-bottom: 5px;
+}
+
+.gm-content {
+  width: 100%;
+}
+
+.gm-loading {
+  text-align: center;
+  padding: 40px;
+  border: 1px solid #2a2218;
+  background-color: #0b0b0c;
+  margin-bottom: 20px;
+  color: #5c4b37;
+  font-style: italic;
+  font-size: 14px;
+}
+
+.image-wrapper {
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.scene-image {
+  width: 100%;
+  border: 2px solid #3a2f24;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
+}
+
+.generating-text {
+  text-align: center;
+  color: #5c4b37;
+  font-style: italic;
+  padding: 20px 0;
+}
+
+/* --- 타이핑 텍스트 컴포넌트 --- */
+.typewriter-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #d1c7b7;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  word-break: keep-all;
+}
+
+.typewriter-text p {
+  margin: 0 0 10px 0;
+}
+
+/* --- 하단 컨트롤러 영역 --- */
+.bottom-controller {
+  padding: 20px 30px;
+  border-top: 1px solid #2a2218;
+  background-color: #0e0e10;
+}
+
+.choices-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 주문 완료 UI */
+.order-success-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.success-box {
+  text-align: center;
+  padding: 16px;
+  background-color: rgba(27, 67, 50, 0.4);
+  border: 1px solid #2f855a;
+  color: #9ae6b4;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.success-box span {
+  font-size: 13px;
+  color: #68d391;
+}
+
+.cancel-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: transparent;
+  color: #fc8181;
+  border: 1px solid #fc8181;
+  border-radius: 4px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: rgba(252, 129, 129, 0.1);
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- 커스텀 스크롤바 --- */
 .novel-scroll::-webkit-scrollbar {
   width: 6px;
 }
@@ -19,7 +199,7 @@ body {
   border-radius: 10px;
 }
 
-/* 텍스트 & 페이드인 애니메이션 */
+/* --- 애니메이션 --- */
 .fade-in {
   animation: fadeIn 0.8s ease-in-out forwards;
 }
@@ -34,7 +214,23 @@ body {
   }
 }
 
-/* 선택지 버튼 디자인 */
+.blinking-cursor {
+  font-weight: bold;
+  color: #8c7355;
+  animation: blink 0.8s step-end infinite;
+  margin-left: 3px;
+}
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* --- 버튼 공통 디자인 --- */
 .choice-btn {
   background: rgba(20, 20, 22, 0.9);
   border: 1px solid #5c4b37;
@@ -59,7 +255,6 @@ body {
   cursor: not-allowed;
 }
 
-/* 출판/주문 버튼 디자인 (현자의 돌 붉은색, 군부 초록색) */
 .action-btn {
   width: 100%;
   padding: 16px;
@@ -72,6 +267,11 @@ body {
   font-family: "Noto Serif KR", serif;
   transition: all 0.3s ease;
 }
+.action-btn:disabled {
+  filter: grayscale(80%);
+  cursor: not-allowed;
+}
+
 .publish-btn {
   background: linear-gradient(135deg, #7b0000 0%, #4a0000 100%);
 }
@@ -79,6 +279,7 @@ body {
   filter: brightness(1.2);
   box-shadow: 0 0 15px rgba(123, 0, 0, 0.6);
 }
+
 .order-btn {
   background: linear-gradient(135deg, #1b4332 0%, #0f2b20 100%);
 }
@@ -86,32 +287,8 @@ body {
   filter: brightness(1.2);
   box-shadow: 0 0 15px rgba(27, 67, 50, 0.6);
 }
-.action-btn:disabled {
-  filter: grayscale(80%);
-  cursor: not-allowed;
-}
 
-/* 타이핑 커서 애니메이션 */
-.blinking-cursor {
-  font-weight: bold;
-  color: #8c7355;
-  animation: blink 0.8s step-end infinite;
-  margin-left: 3px;
-}
-
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-}
-
-/* App.css 맨 아래에 추가 */
-
-/* --- 🔍 갤러리 미리보기 모달 --- */
+/* --- 갤러리 미리보기 모달 --- */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -150,6 +327,21 @@ body {
   background: #0b0b0c;
 }
 
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #f3e5d8;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: #8c7355;
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+}
+
 .modal-body {
   padding: 25px;
   overflow-y: auto;
@@ -165,7 +357,12 @@ body {
   background: #0b0b0c;
 }
 
-/* 갤러리 그리드 레이아웃 */
+.modal-btn {
+  width: auto;
+  padding: 10px 20px;
+  margin: 0;
+}
+
 .gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

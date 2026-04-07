@@ -1,7 +1,13 @@
+/**
+ * File: App.jsx
+ * Description: 강철의 연금술사 테마 TRPG 및 출판 프로세스 UI
+ */
 import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 
-// ✍️ 글자를 한 땀 한 땀 연성하는 타이핑 컴포넌트
+// ==========================================
+// 1. 공통 컴포넌트 (타이핑 애니메이션)
+// ==========================================
 const Typewriter = ({ text, speed = 40, onTyping }) => {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(true);
@@ -26,17 +32,9 @@ const Typewriter = ({ text, speed = 40, onTyping }) => {
   }, [text, speed]);
 
   return (
-    <div
-      style={{
-        fontSize: "16px",
-        lineHeight: "1.8",
-        color: "#d1c7b7",
-        textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-        wordBreak: "keep-all",
-      }}
-    >
+    <div className="typewriter-text">
       {displayedText.split("\n").map((line, idx, arr) => (
-        <p key={idx} style={{ margin: "0 0 10px 0" }}>
+        <p key={idx}>
           {line}
           {isTyping && idx === arr.length - 1 && (
             <span className="blinking-cursor">|</span>
@@ -47,6 +45,9 @@ const Typewriter = ({ text, speed = 40, onTyping }) => {
   );
 };
 
+// ==========================================
+// 2. 메인 애플리케이션 로직
+// ==========================================
 function App() {
   const [messages, setMessages] = useState([]);
   const [turn, setTurn] = useState(0);
@@ -56,9 +57,7 @@ function App() {
   const [isGeneratingText, setIsGeneratingText] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
-  const [isCanceling, setIsCanceling] = useState(false); // 취소 로딩 상태
-
-  // 🔍 갤러리 모달 창 열림/닫힘 상태 추가
+  const [isCanceling, setIsCanceling] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [bookUid, setBookUid] = useState(null);
@@ -76,6 +75,21 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true;
+      fetchGMResponse();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isGeneratingText, scrollToBottom]);
+
+  // ==========================================
+  // 3. API 통신 핸들러
+  // ==========================================
   const fetchGMResponse = async (userMessage = "") => {
     try {
       if (userMessage) {
@@ -89,7 +103,6 @@ function App() {
       const response = await fetch("http://localhost:3000/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // 🚨 [1순위 수정] 백엔드로 내 고유 방 번호를 보냅니다!
         body: JSON.stringify({
           sessionId: sessionId.current,
           message: userMessage,
@@ -97,8 +110,6 @@ function App() {
         }),
       });
       const data = await response.json();
-
-      // ❌ 원래 여기에 있던 setIsGeneratingText(false); 를 지웠습니다!
 
       const msgId = Date.now();
       setMessages((prev) => [
@@ -111,72 +122,48 @@ function App() {
           isLoadingImage: true,
         },
       ]);
-      setChoices(data.choices || []);
 
-      if (data.isEndOfChapter) {
-        setIsFinished(true);
-      }
+      setChoices(data.choices || []);
+      if (data.isEndOfChapter) setIsFinished(true);
       setTurn((prev) => prev + 1);
 
       if (data.imagePrompt) {
-        fetch("http://localhost:3000/api/image", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imagePrompt: data.imagePrompt }),
-        })
-          .then((res) => res.json())
-          .then((imgData) => {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === msgId
-                  ? {
-                      ...msg,
-                      imageUrl: imgData.imageUrl,
-                      isLoadingImage: false,
-                    }
-                  : msg,
-              ),
-            );
-            setTimeout(scrollToBottom, 200);
-
-            // 🚨 [2순위 수정] 이미지가 완전히 화면에 표시될 준비가 된 '지금' 잠금을 풉니다!
-            setIsGeneratingText(false);
-          })
-          .catch((err) => {
-            console.error("이미지 통신 에러:", err);
-            // 에러가 나서 이미지를 못 받아와도 게임은 진행되도록 잠금을 풀어줍니다.
-            setIsGeneratingText(false);
+        try {
+          const imgResponse = await fetch("http://localhost:3000/api/image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imagePrompt: data.imagePrompt }),
           });
+          const imgData = await imgResponse.json();
+
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === msgId
+                ? { ...msg, imageUrl: imgData.imageUrl, isLoadingImage: false }
+                : msg,
+            ),
+          );
+          setTimeout(scrollToBottom, 200);
+        } catch (imgError) {
+          console.error("[Client - Error] 이미지 통신 오류:", imgError);
+        } finally {
+          setIsGeneratingText(false);
+        }
       } else {
-        // 이미지 프롬프트가 없는 턴이라면 바로 잠금을 풉니다.
         setIsGeneratingText(false);
       }
     } catch (error) {
-      console.error("API 통신 에러:", error);
+      console.error("[Client - Error] 채팅 API 통신 오류:", error);
       setIsGeneratingText(false);
     }
   };
 
-  useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      fetchGMResponse();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isGeneratingText, scrollToBottom]);
-
-  // 📖 출판 API 호출 함수 (이제 모달 안에서 불립니다)
   const handlePublish = async () => {
     try {
       setIsPublishing(true);
-      setShowPreviewModal(false); // 출판 시작 시 모달 닫기
-      alert(
-        "스토리와 연성된 이미지를 책으로 묶습니다... 잠시만 기다려주세요! 🪄",
-      );
+      setShowPreviewModal(false);
+      alert("스토리와 연성된 이미지를 책으로 묶습니다. 잠시만 기다려주십시오.");
+
       const response = await fetch("http://localhost:3000/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -184,6 +171,7 @@ function App() {
       });
       const data = await response.json();
       setIsPublishing(false);
+
       if (data.success) {
         setBookUid(data.bookUid);
         alert(data.message);
@@ -191,7 +179,7 @@ function App() {
         alert("출판 실패: " + data.message);
       }
     } catch (error) {
-      console.error("출판 에러:", error);
+      console.error("[Client - Error] 출판 에러:", error);
       setIsPublishing(false);
       alert("서버 통신 오류가 발생했습니다.");
     }
@@ -200,7 +188,8 @@ function App() {
   const handleOrder = async () => {
     try {
       setIsOrdering(true);
-      alert("센트럴 사령부에 인쇄를 요청합니다... 🛒");
+      alert("센트럴 사령부에 인쇄를 요청합니다.");
+
       const response = await fetch("http://localhost:3000/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,6 +197,7 @@ function App() {
       });
       const data = await response.json();
       setIsOrdering(false);
+
       if (data.success) {
         setOrderUid(data.orderUid);
         alert(data.message);
@@ -215,13 +205,12 @@ function App() {
         alert("주문 실패: " + data.message);
       }
     } catch (error) {
-      console.error("주문 에러:", error);
+      console.error("[Client - Error] 주문 에러:", error);
       setIsOrdering(false);
       alert("서버 통신 오류가 발생했습니다.");
     }
   };
 
-  // 🚨 취소 버튼 핸들러 추가
   const handleCancelOrder = async () => {
     if (
       !window.confirm(
@@ -235,148 +224,67 @@ function App() {
       const response = await fetch("http://localhost:3000/api/order/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderUid }), // 취소할 주문 번호를 서버로 전송
+        body: JSON.stringify({ orderUid }),
       });
-
       const data = await response.json();
       setIsCanceling(false);
 
       if (data.success) {
         alert(data.message);
-        setOrderUid(null); // 주문 번호를 날려버려서 다시 "주문하기" 버튼이 뜨게 만듦!
+        setOrderUid(null);
       } else {
         alert(data.message);
       }
     } catch (error) {
-      console.error("주문 취소 에러:", error);
+      console.error("[Client - Error] 주문 취소 에러:", error);
       setIsCanceling(false);
       alert("서버 통신 오류가 발생했습니다.");
     }
   };
 
-  // 모달 렌더링에 사용할 이미지가 있는 메시지만 필터링
   const galleryImages = messages.filter((msg) => msg.imageUrl);
 
+  // ==========================================
+  // 4. UI 렌더링
+  // ==========================================
   return (
-    <div
-      style={{
-        color: "#d1c7b7",
-        minHeight: "100vh",
-        padding: "20px",
-        position: "relative",
-      }}
-    >
-      <div
-        style={{ textAlign: "center", marginBottom: "20px", marginTop: "10px" }}
-      >
-        <h1
-          style={{
-            margin: 0,
-            fontSize: "28px",
-            color: "#f3e5d8",
-            textShadow: "0 2px 10px rgba(0,0,0,0.8)",
-          }}
-        >
-          국가 연금술사 연구 일지
-        </h1>
-        <p style={{ margin: "5px 0 0 0", fontSize: "14px", color: "#8c7355" }}>
-          The Fullmetal Alchemist Visual Novel
-        </p>
-        <div
-          style={{
-            width: "60px",
-            height: "2px",
-            background: "#5c4b37",
-            margin: "15px auto",
-          }}
-        />
+    <div className="app-container">
+      {/* 헤더 */}
+      <div className="app-header">
+        <h1 className="app-title">국가 연금술사 연구 일지</h1>
+        <p className="app-subtitle">The Fullmetal Alchemist Visual Novel</p>
+        <div className="app-divider" />
       </div>
 
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          backgroundColor: "#121214",
-          border: "1px solid #2a2218",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
-          borderRadius: "6px",
-          display: "flex",
-          flexDirection: "column",
-          height: "75vh",
-        }}
-      >
-        <div
-          className="novel-scroll"
-          ref={scrollRef}
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "30px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "35px",
-          }}
-        >
+      {/* 메인 컨테이너 */}
+      <div className="main-box">
+        {/* 대화 영역 */}
+        <div className="chat-container novel-scroll" ref={scrollRef}>
           {messages.map((msg, idx) => (
             <div
               key={idx}
-              className="fade-in"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: msg.sender === "user" ? "flex-end" : "flex-start",
-              }}
+              className={`fade-in message-row ${msg.sender === "user" ? "user-row" : "gm-row"}`}
             >
               {msg.sender === "user" && (
-                <div
-                  style={{
-                    color: "#8c7355",
-                    fontStyle: "italic",
-                    fontSize: "15px",
-                    borderBottom: "1px solid #2a2218",
-                    paddingBottom: "5px",
-                  }}
-                >
-                  " {msg.text} "
-                </div>
+                <div className="user-text">" {msg.text} "</div>
               )}
 
               {msg.sender === "gm" && (
-                <div style={{ width: "100%" }}>
+                <div className="gm-content">
                   {msg.isLoadingImage && (
-                    <div
-                      style={{
-                        textAlign: "center",
-                        padding: "40px",
-                        border: "1px solid #2a2218",
-                        backgroundColor: "#0b0b0c",
-                        marginBottom: "20px",
-                        color: "#5c4b37",
-                        fontStyle: "italic",
-                        fontSize: "14px",
-                      }}
-                    >
-                      ✧ 진리의 문에서 장면을 연성하는 중... ✧
+                    <div className="gm-loading">
+                      [ 진리의 문에서 장면을 연성하는 중... ]
                     </div>
                   )}
                   {msg.imageUrl && (
-                    <div
-                      className="fade-in"
-                      style={{ marginBottom: "25px", textAlign: "center" }}
-                    >
+                    <div className="fade-in image-wrapper">
                       <img
                         src={msg.imageUrl}
                         alt="Scene"
-                        style={{
-                          width: "100%",
-                          border: "2px solid #3a2f24",
-                          boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
-                          borderRadius: "2px",
-                        }}
+                        className="scene-image"
                       />
                     </div>
                   )}
-
                   <Typewriter
                     text={msg.text}
                     speed={30}
@@ -388,31 +296,16 @@ function App() {
           ))}
 
           {isGeneratingText && (
-            <div
-              className="fade-in"
-              style={{
-                textAlign: "center",
-                color: "#5c4b37",
-                fontStyle: "italic",
-                padding: "20px 0",
-              }}
-            >
+            <div className="fade-in generating-text">
               기록을 이어나가는 중...
             </div>
           )}
         </div>
 
-        <div
-          style={{
-            padding: "20px 30px",
-            borderTop: "1px solid #2a2218",
-            backgroundColor: "#0e0e10",
-          }}
-        >
+        {/* 하단 컨트롤러 */}
+        <div className="bottom-controller">
           {!isFinished ? (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
-            >
+            <div className="choices-container">
               {choices.map((choice, idx) => (
                 <button
                   key={idx}
@@ -425,15 +318,14 @@ function App() {
               ))}
             </div>
           ) : !bookUid ? (
-            // 🚨 출판 버튼을 누르면 바로 출판하는게 아니라 모달을 먼저 띄웁니다!
             <button
               className="action-btn publish-btn"
               onClick={() => setShowPreviewModal(true)}
               disabled={isPublishing}
             >
               {isPublishing
-                ? "📖 진리의 문에서 책을 엮는 중..."
-                : "🔍 출판 전 연성진 검토 (미리보기)"}
+                ? "진리의 문에서 책을 엮는 중..."
+                : "출판 전 연성진 검토 (미리보기)"}
             </button>
           ) : !orderUid ? (
             <button
@@ -442,80 +334,41 @@ function App() {
               disabled={isOrdering}
             >
               {isOrdering
-                ? "🛒 사령부에 주문 접수 중..."
-                : "🛒 센트럴 사령부에 인쇄 요청하기 (주문)"}
+                ? "사령부에 주문 접수 중..."
+                : "센트럴 사령부에 인쇄 요청하기 (주문)"}
             </button>
           ) : (
-            // 🚨 주문 완료 후 나타나는 화면 수정
-            <div
-              className="fade-in"
-              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-            >
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "16px",
-                  backgroundColor: "rgba(27,67,50,0.4)",
-                  border: "1px solid #2f855a",
-                  color: "#9ae6b4",
-                  borderRadius: "4px",
-                  fontSize: "16px",
-                }}
-              >
-                ✅ 국가 연금술사 사령부로 주문이 완료되었습니다. <br />
-                <span style={{ fontSize: "13px", color: "#68d391" }}>
-                  (주문번호: {orderUid})
-                </span>
+            <div className="fade-in order-success-container">
+              <div className="success-box">
+                국가 연금술사 사령부로 주문이 완료되었습니다. <br />
+                <span>(주문번호: {orderUid})</span>
               </div>
-
-              {/* 🚨 비상탈출(취소) 버튼 추가 */}
               <button
+                className="cancel-btn"
                 onClick={handleCancelOrder}
                 disabled={isCanceling}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  backgroundColor: "transparent",
-                  color: "#fc8181",
-                  border: "1px solid #fc8181",
-                  borderRadius: "4px",
-                  fontSize: "15px",
-                  cursor: isCanceling ? "not-allowed" : "pointer",
-                  transition: "all 0.3s ease",
-                  opacity: isCanceling ? 0.5 : 1,
-                }}
               >
                 {isCanceling
-                  ? "⏳ 취소 요청 중..."
-                  : "🚨 비상탈출 (인쇄 주문 취소하기)"}
+                  ? "취소 요청 중..."
+                  : "비상탈출 (인쇄 주문 취소하기)"}
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* 🔍 출판 전 갤러리 모달창 */}
+      {/* 모달 팝업 */}
       {showPreviewModal && (
         <div
           className="modal-overlay"
           onClick={() => setShowPreviewModal(false)}
         >
-          {/* 안쪽 클릭 시 닫히지 않도록 e.stopPropagation() 처리 */}
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 style={{ margin: 0, fontSize: "20px", color: "#f3e5d8" }}>
-                📖 출판 전 수집된 일지 (총 {galleryImages.length}장)
-              </h2>
+              <h2>출판 전 수집된 일지 (총 {galleryImages.length}장)</h2>
               <button
+                className="modal-close-btn"
                 onClick={() => setShowPreviewModal(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#8c7355",
-                  fontSize: "28px",
-                  cursor: "pointer",
-                  lineHeight: "1",
-                }}
               >
                 &times;
               </button>
@@ -533,20 +386,17 @@ function App() {
             </div>
 
             <div className="modal-footer">
-              {/* 🚨 '더 수정하기'를 직관적인 '닫기'로 변경! */}
               <button
-                className="choice-btn"
-                style={{ width: "auto", padding: "10px 20px", margin: 0 }}
+                className="choice-btn modal-btn"
                 onClick={() => setShowPreviewModal(false)}
               >
                 닫기
               </button>
               <button
-                className="action-btn publish-btn"
-                style={{ width: "auto", padding: "10px 30px", margin: 0 }}
+                className="action-btn publish-btn modal-btn"
                 onClick={handlePublish}
               >
-                최종 출판하기 🪄
+                최종 출판하기
               </button>
             </div>
           </div>

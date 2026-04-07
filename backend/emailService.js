@@ -1,8 +1,10 @@
-// backend/emailService.js
+/**
+ * File: emailService.js
+ * Description: Nodemailer 기반 상태 알림 이메일 전송 서비스
+ */
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-// 이메일 발송을 위한 우체국(Transporter) 세팅
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -11,7 +13,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 1. 주문 완료 영수증 이메일 발송 함수
+// ==========================================
+// 1. 주문 영수증 이메일 발송
+// ==========================================
 async function sendOrderReceiptEmail(userEmail, orderUid, bookUid) {
   const mailOptions = {
     from: `"아메스트리스 센트럴 사령부" <${process.env.EMAIL_USER}>`,
@@ -26,7 +30,6 @@ async function sendOrderReceiptEmail(userEmail, orderUid, bookUid) {
           <p><strong>📚 책 번호:</strong> ${bookUid}</p>
           <p><strong>상태:</strong> 🛠️ 인쇄 준비 중</p>
         </div>
-        <p style="color: #a0aec0; font-size: 14px;">본 일지가 인쇄를 마치고 배송이 시작되면 다시 통신을 보내드리겠습니다.</p>
         <p style="text-align: right; margin-top: 40px; font-style: italic; color: #8c7355;">- 센트럴 사령부 기록보관소 -</p>
       </div>
     `,
@@ -34,13 +37,15 @@ async function sendOrderReceiptEmail(userEmail, orderUid, bookUid) {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✉️ [이메일 발송 성공] ${userEmail}로 영수증을 발송했습니다.`);
+    console.log(`[EmailService] ✅ ${userEmail}로 영수증 메일 발송 완료.`);
   } catch (error) {
-    console.error("❌ 이메일 발송 실패:", error);
+    console.error(`[EmailService] ❌ Error: 영수증 메일 발송 실패 -`, error);
   }
 }
 
-// 2. 배송 출발 알림 이메일 발송 함수 (나중에 웹훅과 연결할 함수!)
+// ==========================================
+// 2. 배송 출발 이메일 발송
+// ==========================================
 async function sendShippingEmail(userEmail, orderUid, trackingNumber) {
   const mailOptions = {
     from: `"아메스트리스 센트럴 사령부" <${process.env.EMAIL_USER}>`,
@@ -61,11 +66,9 @@ async function sendShippingEmail(userEmail, orderUid, trackingNumber) {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(
-      `✉️ [이메일 발송 성공] ${userEmail}로 배송 알림을 발송했습니다.`,
-    );
+    console.log(`[EmailService] ✅ ${userEmail}로 배송 알림 메일 발송 완료.`);
   } catch (error) {
-    console.error("❌ 배송 이메일 발송 실패:", error);
+    console.error(`[EmailService] ❌ Error: 배송 알림 메일 발송 실패 -`, error);
   }
 }
 
