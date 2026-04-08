@@ -11,7 +11,6 @@
 
 ## 2. 실행 방법
 
-    ```bash
     # 설치
     cd backend && npm install
     cd ../frontend && npm install
@@ -29,7 +28,6 @@
     # [터미널 2] 프론트엔드 실행
     cd frontend
     npm run dev
-    ```
 
 ## 3. 사용한 API 목록
 
