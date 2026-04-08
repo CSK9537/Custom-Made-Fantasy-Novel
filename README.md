@@ -29,6 +29,13 @@
     cd frontend
     npm run dev
 
+    # [터미널 3] ngrok 실행 (웹훅 수신용)
+    ngrok config add-authtoken <본인의 *ngrok*토큰> # (최초 1회 필수)
+    ngrok http 3000
+
+    # ※ 주의사항
+    ngrok 실행 후 발급된 https://... 주소를 복사하여 스위트북 파트너 포털의 Webhook 수신 URL에 [ngrok주소]/api/webhook/sweetbook 형식으로 등록해야 웹훅이 정상 수신됩니다.
+
 ## 3. 사용한 API 목록
 
 | API                              | 용도                                                                                       |
