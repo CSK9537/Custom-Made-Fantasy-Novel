@@ -107,7 +107,14 @@ function App() {
             </div>
           ))}
           {isGeneratingText && (
-            <div className="fade-in generating-text">기록 중...</div>
+            <div className="fade-in generating-text">
+              <div className="loading-dots">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
+              <span>운명을 연성하는 중...</span>
+            </div>
           )}
         </div>
 

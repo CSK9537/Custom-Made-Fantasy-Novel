@@ -25,9 +25,10 @@ async function generateSceneImage(prompt) {
       `[ImageService] ℹ️ DALL-E 3 고품질 이미지 연성 중... (프롬프트: ${prompt.substring(0, 30)}...)`,
     );
 
+    const finalStylePrompt = `Anime screencap from Fullmetal Alchemist Brotherhood. ${prompt}. Cell-shaded 2D animation style, flat colors, distinct line art, masterpiece, high quality, official art style of Hiromu Arakawa.`;
     const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: `${prompt}, in the exact visual style of Hiromu Arakawa's Fullmetal Alchemist anime. Cell-shaded animation, steampunk aesthetics, dramatic cinematic lighting, masterpiece, high quality.`,
+      prompt: finalStylePrompt, // 🚨 강화된 프롬프트 변수 사용
       n: 1,
       size: "1024x1024",
       response_format: "url",
@@ -38,7 +39,7 @@ async function generateSceneImage(prompt) {
     console.error(
       `[ImageService] ❌ Error: 이미지 생성 실패 - ${error.message}`,
     );
-    return "https://via.placeholder.com/1024/000000/ffffff?text=Image+Generation+Failed";
+    return "https://images.unsplash.com/photo-1586974722743-dc81ec52b2cd?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
   }
 }
 
